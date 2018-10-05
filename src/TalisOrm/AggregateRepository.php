@@ -1,5 +1,4 @@
 <?php
-declare(strict_types=1);
 
 namespace TalisOrm;
 
@@ -11,7 +10,6 @@ use function is_a;
 use LogicException;
 use PDO;
 use TalisOrm\DomainEvents\EventDispatcher;
-use TalisOrm\DomainEvents\RecordsDomainEvents;
 
 final class AggregateRepository
 {
@@ -31,7 +29,11 @@ final class AggregateRepository
         $this->eventDispatcher = $eventDispatcher;
     }
 
-    public function save(Aggregate $aggregate): void
+    /**
+     * @param Aggregate $aggregate
+     * @throws \Throwable
+     */
+    public function save(Aggregate $aggregate)
     {
         $this->connection->transactional(function () use ($aggregate) {
             $this->insertOrUpdate($aggregate);
@@ -50,7 +52,13 @@ final class AggregateRepository
         $this->eventDispatcher->dispatch(...$aggregate->releaseEvents());
     }
 
-    public function getById(string $aggregateClass, AggregateId $aggregateId)
+    /**
+     * @param string $aggregateClass
+     * @param AggregateId $aggregateId
+     * @return mixed
+     * @throws DBALException
+     */
+    public function getById($aggregateClass, AggregateId $aggregateId)
     {
         if (!is_a($aggregateClass, Aggregate::class, true)) {
             throw new InvalidArgumentException(sprintf(
@@ -93,36 +101,56 @@ final class AggregateRepository
         return $aggregate;
     }
 
-    public function delete(Aggregate $aggregate): void
+    /**
+     * @param Aggregate $aggregate
+     * @throws \Throwable
+     */
+    public function delete(Aggregate $aggregate)
     {
         $this->connection->transactional(function () use ($aggregate) {
-            $this->connection->delete($aggregate->tableName(), $aggregate->identifier());
+            $this->connection->delete($aggregate::tableName(), $aggregate->identifier());
 
             foreach ($aggregate->childEntitiesByType() as $type => $childEntities) {
                 foreach ($childEntities as $childEntity) {
-                    $this->connection->delete($childEntity->tableName(), $childEntity->identifier());
+                    $this->connection->delete($childEntity::tableName(), $childEntity->identifier());
                 }
             }
         });
     }
 
-    private function insertOrUpdate(Entity $entity): void
+    /**
+     * @param Entity $entity
+     * @throws DBALException
+     */
+    private function insertOrUpdate(Entity $entity)
     {
-        if ($this->exists($entity->tableName(), $entity->identifier())) {
-            $this->connection->update($entity->tableName(), $entity->state(), $entity->identifier());
+        if ($this->exists($entity::tableName(), $entity->identifier())) {
+            $this->connection->update($entity::tableName(), $entity->state(), $entity->identifier());
         } else {
-            $this->connection->insert($entity->tableName(), $entity->state());
+            $this->connection->insert($entity::tableName(), $entity->state());
         }
     }
 
-    private function exists(string $tableName, array $identifier): bool
+    /**
+     * @param string $tableName
+     * @param array $identifier
+     * @return bool
+     * @throws DBALException
+     */
+    private function exists($tableName, array $identifier)
     {
         $count = $this->select('COUNT(*)', $tableName, $identifier)->fetchColumn();
 
         return (int)$count > 0;
     }
 
-    private function fetchAll(string $tableName, array $identifier): array
+    /**
+     * @param string $tableName
+     * @param array $identifier
+     * @return array
+     * @throws DBALException
+     */
+    private function fetchAll($tableName, array $identifier)
     {
         return $this->select('*', $tableName, $identifier)->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -136,7 +164,7 @@ final class AggregateRepository
      * @return ResultStatement
      * @throws DBALException
      */
-    private function select(string $selectExpression, string $tableExpression, array $where): ResultStatement
+    private function select($selectExpression, $tableExpression, array $where)
     {
         $conditions = [];
         $values = [];

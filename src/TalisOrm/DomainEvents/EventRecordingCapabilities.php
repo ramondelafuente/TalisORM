@@ -1,10 +1,7 @@
 <?php
-declare(strict_types=1);
 
 namespace TalisOrm\DomainEvents;
 
-use InvalidArgumentException;
-use function is_object;
 use Webmozart\Assert\Assert;
 
 /**
@@ -21,7 +18,7 @@ trait EventRecordingCapabilities
      *
      * @param object $event
      */
-    protected function recordThat($event): void
+    protected function recordThat($event)
     {
         Assert::object($event);
 
@@ -32,7 +29,7 @@ trait EventRecordingCapabilities
      * @see \TalisOrm\Aggregate::releaseEvents()
      * @return object[]
      */
-    public function releaseEvents(): array
+    public function releaseEvents()
     {
         $events = $this->events;
 
